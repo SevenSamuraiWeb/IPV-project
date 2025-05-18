@@ -5,7 +5,8 @@ from scipy import ndimage as ndi
 from skimage.feature import peak_local_max
 from skimage.segmentation import watershed
 import streamlit as st
-
+from PIL import Image
+import io
 
 def blend_background(image, mask, blur_radius=21):
     if mask is None or image is None: 
@@ -34,6 +35,7 @@ def blend_background(image, mask, blur_radius=21):
     
     blended = image.astype(np.float32) * alpha + gray_color.astype(np.float32) * (1 - alpha)
     return np.uint8(blended)
+
 
 def refine_mask(mask, open_iterations=1, close_iterations=1, kernel_size=5):
     """Refines a binary mask using morphological opening and closing."""
@@ -79,6 +81,7 @@ def apply_grabcut(cv_image, iterations=5):
 
     # mask values: 0 (def BG), 1 (def FG), 2 (prob BG), 3 (prob FG)
     output_mask = np.where((mask == cv2.GC_PR_FGD) | (mask == cv2.GC_FGD), 1, 0).astype(np.uint8)
+    # output_mask = refine_mask(output_mask, open_iterations=1, close_iterations=1)
     
     gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
     gray_background = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR) # Convert single channel gray to 3-channel
@@ -87,8 +90,14 @@ def apply_grabcut(cv_image, iterations=5):
     output_mask_3ch = output_mask[:, :, np.newaxis]
     
     blended = gray_background * (1 - output_mask_3ch) + cv_image * output_mask_3ch
-    return blended.astype(np.uint8)
+    return output_mask,blended.astype(np.uint8)
 
+
+def convert_to_download(img_array):
+    im_pil = Image.fromarray(img_array)
+    buffer = io.BytesIO()
+    im_pil.save(buffer, format="PNG")
+    return buffer.getvalue()
 
 
 def segment_canny(image, low_thresh_factor=0.66, high_thresh_factor=1.33): 
@@ -136,7 +145,7 @@ def segment_otsu(image):
     # Refine the mask
     mask = refine_mask(mask, open_iterations=1, close_iterations=2)
     
-    fig, ax = plt.subplots(figsize=(5,5))
+    fig, ax = plt.subplots(figsize=(3,2))
     ax.hist(gray.ravel(), bins=256, range=(0,256), color='gray', alpha=0.7)
     ax.axvline(ret, color='red', linestyle='--', label=f'Threshold={ret:.0f}')
     ax.legend()

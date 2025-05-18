@@ -5,9 +5,8 @@ from torchvision.models.detection import maskrcnn_resnet50_fpn
 from torchvision.transforms import functional as F
 import torch
 from PIL import Image
-import io
 from model import SaliencyModel
-from utils import apply_grabcut, segment_otsu, segment_watershed_sk, segment_canny, segment_kmeans, blend_background
+from utils import apply_grabcut, segment_otsu, segment_watershed_sk, segment_canny, segment_kmeans,convert_to_download,blend_background
 
 import os
 os.environ["STREAMLIT_DISABLE_WATCHDOG_WARNINGS"] = "true"
@@ -116,12 +115,6 @@ def process_image_maskR(pil_image, threshold=0.75):
 
     return contoured_img, combined_blur, combined_grey
 
-def convert_to_download(img_array):
-    im_pil = Image.fromarray(img_array)
-    buffer = io.BytesIO()
-    im_pil.save(buffer, format="PNG")
-    return buffer.getvalue()
-
 # -------------------- SIDEBAR UI --------------------
 
 st.sidebar.title("🧠 Choose Technique:")
@@ -130,6 +123,8 @@ mode = st.sidebar.radio("Mode", ["Image segmentation", "Deep Learning"])
 if mode == "Image segmentation":
     st.sidebar.markdown("### Segmentation Method")
     method = st.sidebar.selectbox("Select method", ["GrabCut","K-means","Otsu Threshold", "Watershed", "Canny Edges" ])
+    if method == "K-means":
+        k_val = st.sidebar.radio("K value",[2,3])
 else:
     st.sidebar.markdown("### CNN model")
     method = st.sidebar.selectbox("Select method", ["Mask-R-CNN","U-Net w/ VGG16"])
@@ -152,41 +147,39 @@ if uploaded_file:
     with st.spinner("Processing..."):
         if mode == "Image segmentation":
             if method == "GrabCut":
-                mask = apply_grabcut(img)
-                result = mask    
-                st.image(result, caption=f"✅ Result using {method}", use_container_width=True)
-                st.download_button("📥 Download", convert_to_download(result), "highlighted_grabcut.png")
+                mask,result = apply_grabcut(img)
+                mask = mask.astype(np.uint8) * 255  
 
             elif method == "Otsu Threshold":
                 mask = segment_otsu(img)
                 result = blend_background(img, mask)
-                st.image(result, caption=f"✅ Result using {method}", use_container_width=True,width=300)
-                st.download_button("📥 Download", convert_to_download(result), "highlighted_otsu.png")
 
             elif method == "Watershed":
                 # scikit-image watershed
-                mask1 = segment_watershed_sk(img)
-                result1 = blend_background(img, mask1)
-                st.image(result1, caption=f"✅ Result using scikit-image {method}", use_container_width=True)
-                st.download_button("📥 Download", convert_to_download(result1), "highlighted_watershed_sk.png")
+                mask = segment_watershed_sk(img)
+                result = blend_background(img, mask)
                             
             elif method == "Canny Edges":
                 mask = segment_canny(img)
                 result = blend_background(img, mask)
-                st.image(result, caption=f"✅ Result using {method}", use_container_width=True)
-                st.download_button("📥 Download", convert_to_download(result), "highlighted_canny.png")
             
             elif method == "K-means":
-                mask, _ = segment_kmeans(img,k=2)
-                result1 = blend_background(img, mask)
-                st.image(result1, caption=f"✅ Result using k=2 {method}", use_container_width=True)
-                st.download_button("📥 Download", convert_to_download(result1), "highlighted_kmeans2.png")
-
-                mask, _ = segment_kmeans(img,k=3)
-                result2 = blend_background(img, mask)
-                st.image(result2, caption=f"✅ Result using k=3 {method}", use_container_width=True)
-                st.download_button("📥 Download", convert_to_download(result2), "highlighted_kmeans3.png")
-
+                mask, segmented = segment_kmeans(img,k=k_val)
+                st.image(segmented, caption=f"✅ Segmented image", use_container_width=True)
+                result = blend_background(img, mask)
+            
+            
+            col1,col2 = st.columns(2)
+            # display mask
+            with col1:
+                st.image(mask, caption=f"✅ Mask using {method}", use_container_width=True)
+                st.download_button("📥 Download", convert_to_download(mask), "mask.png")
+            
+            # display blended image
+            with col2:    
+                st.image(result, caption=f"✅ Result using {method}", use_container_width=True)
+                st.download_button("📥 Download", convert_to_download(result), "highlighted.png")
+        
         else:         
                 if method == "Mask-R-CNN":
                     contoured, blurred_bg, greyed_bg = process_image_maskR(img_pil)
