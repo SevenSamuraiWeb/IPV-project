@@ -1,5 +1,4 @@
 altair==5.5.0
-opencv-python-headless
 attrs==25.3.0
 blinker==1.9.0
 cachetools==5.5.2

@@ -106,14 +106,14 @@ def segment_canny(image, low_thresh_factor=0.66, high_thresh_factor=1.33):
 
     # Adaptive Canny thresholds
     median_val = np.median(blur)
-    low_thresh = int(max(0, (1.0 - low_thresh_factor) * median_val if low_thresh_factor < 1 
-                        else low_thresh_factor * median_val * 0.66)) # ensure low is lower
-    high_thresh = int(min(255, (1.0 + high_thresh_factor) * median_val if high_thresh_factor > 1
-                         else high_thresh_factor * median_val * 1.33)) # ensure high is higher
+    # low_thresh = int(max(0, (1.0 - low_thresh_factor) * median_val if low_thresh_factor < 1 
+    #                     else low_thresh_factor * median_val * 0.66)) # ensure low is lower
+    # high_thresh = int(min(255, (1.0 + high_thresh_factor) * median_val if high_thresh_factor > 1
+    #                      else high_thresh_factor * median_val * 1.33)) # ensure high is higher
     # A simpler common approach:
-    # sigma = 0.33
-    # low_thresh = int(max(0, (1.0 - sigma) * median_val))
-    # high_thresh = int(min(255, (1.0 + sigma) * median_val))
+    sigma = 0.33
+    low_thresh = int(max(0, (1.0 - sigma) * median_val))
+    high_thresh = int(min(255, (1.0 + sigma) * median_val))
 
 
     edges = cv2.Canny(blur, low_thresh, high_thresh)
@@ -134,7 +134,7 @@ def segment_otsu(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     
     # Compute Otsu's threshold. Pixels > ret will be 255 (maxval).
-    ret, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    ret, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     mask = mask.astype(np.uint8)
 
     # Heuristic: If the "foreground" (white area) is too large, invert the mask.
@@ -198,7 +198,7 @@ def segment_watershed_sk(image):
     
     # Apply Otsu's thresholding - corrected maxval
     # The choice of THRESH_BINARY vs THRESH_BINARY_INV depends on whether objects are lighter or darker than background
-    ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     # Ensure binary mask (0 or 1) for skimage
     # Clean up noise from Otsu's output
