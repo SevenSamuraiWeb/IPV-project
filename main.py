@@ -27,7 +27,6 @@ mask_r_model = load_mask_r_model()
 
 # U-Net with VGG16 encoder
 @st.cache_resource
-@st.cache_resource
 def load_unet_model(pth_path, device):
     model = SaliencyModel()
     state_dict = torch.load(pth_path, map_location='cpu')
@@ -37,7 +36,14 @@ def load_unet_model(pth_path, device):
     return model
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-unet_model = load_unet_model('unet.pth',device)
+try:
+    unet_model = load_unet_model('unet.pth',device)
+except FileNotFoundError:
+    st.error("Error: 'unet.pth' not found. Please ensure the model weights are in the project root.")
+    unet_model = None
+except Exception as e:
+    st.error(f"Error loading model: {e}")
+    unet_model = None
 
 
 # -------------------- IMAGE SEGMENTATION FUNCTIONS --------------------
@@ -151,7 +157,8 @@ if uploaded_file:
                 mask = mask.astype(np.uint8) * 255  
 
             elif method == "Otsu Threshold":
-                mask = segment_otsu(img)
+                mask, fig = segment_otsu(img)
+                st.pyplot(fig, use_container_width=True)
                 result = blend_background(img, mask)
 
             elif method == "Watershed":

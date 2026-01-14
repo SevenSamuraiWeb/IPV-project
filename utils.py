@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from scipy import ndimage as ndi
 from skimage.feature import peak_local_max
 from skimage.segmentation import watershed
-import streamlit as st
+# import streamlit as st
 from PIL import Image
 import io
 
@@ -142,6 +142,8 @@ def segment_otsu(image):
     if np.mean(mask / 255.0) > 0.75: # If > 75% of image is foreground
         mask = cv2.bitwise_not(mask)
 
+    mask = cv2.bitwise_not(mask)
+
     # Refine the mask
     mask = refine_mask(mask, open_iterations=1, close_iterations=2)
     
@@ -150,8 +152,9 @@ def segment_otsu(image):
     ax.axvline(ret, color='red', linestyle='--', label=f'Threshold={ret:.0f}')
     ax.legend()
     ax.set_title("Otsu Histogram")
-    st.pyplot(fig,use_container_width=True) 
-    return mask
+    ax.set_title("Otsu Histogram")
+    # st.pyplot(fig,use_container_width=True) 
+    return mask, fig
 
 
 
@@ -226,5 +229,6 @@ def segment_watershed_sk(image):
     # If labels_ws can contain 0 for background within the mask, then >0 is correct.
     # Typically, watershed labels distinct regions with integers > 0.
     mask = np.uint8(labels_ws > 0) * 255
+    mask = cv2.bitwise_not(mask)
     mask = refine_mask(mask, open_iterations=1, close_iterations=1)
     return mask
